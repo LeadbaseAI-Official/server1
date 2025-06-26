@@ -93,6 +93,8 @@ def add_user():
 
         conn_users.commit()
         print("💾 Committed changes. Pushing to GitHub...")
+        print("🧪 DB absolute path:", os.path.abspath(DB_FILE))
+        print("🧪 DB size before push:", os.path.getsize(DB_FILE))
         upload_db_to_github()
 
         return jsonify({"status": "ok"})
