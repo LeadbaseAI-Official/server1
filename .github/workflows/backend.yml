@@ -9,18 +9,20 @@ jobs:
     timeout-minutes: 350
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repo with push access
         uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GH_TOKEN }}  # Must be classic token with repo access
 
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
 
-      - name: Install Flask
+      - name: Install Python dependencies
         run: pip install flask flask-cors PyGithub
 
-      - name: Decode credentials.json
+      - name: Decode Cloudflare credentials
         run: echo "${{ secrets.CLOUDFLARE_CERT }}" | base64 -d > credentials.json
 
       - name: Download cloudflared
@@ -29,8 +31,10 @@ jobs:
           chmod +x cloudflared-linux-amd64
           mv cloudflared-linux-amd64 cloudflared
 
-      - name: Start Flask + Tunnel
+      - name: Launch Flask API + Tunnel
         run: |
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action"
           python server.py &
           sleep 5
           ./cloudflared tunnel --config config.yml run
