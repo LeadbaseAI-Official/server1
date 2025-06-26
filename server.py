@@ -8,12 +8,14 @@ GITHUB_TOKEN = os.getenv("GH_TOKEN")  # GitHub Actions secret or env var
 REPO_NAME = "LeadbaseAI-Official/server1"
 DB_FILE = "users.db"
 BRANCH = "main"
+print('configuration succesful')
 
 # -------------------- GitHub Sync --------------------
 def upload_db_to_github():
     try:
         g = Github(GITHUB_TOKEN)
         repo = g.get_repo(REPO_NAME)
+        print('github cinfig succesful')
         contents = repo.get_contents(DB_FILE, ref=BRANCH)
         with open(DB_FILE, "rb") as f:
             new_content = f.read()
@@ -42,6 +44,7 @@ cursor_data = conn_data.cursor()
 def check_user():
     try:
         data = request.get_json()
+        print('data get succesfull')
         email = data.get("email")
         ip = data.get("ip")
 
@@ -53,7 +56,9 @@ def check_user():
             FROM Users
             WHERE email = ? AND ip = ?
         """, (email, ip))
+        print('data submitted')
         user = cursor_users.fetchone()
+        print('db connection scf')
 
         if user:
             return jsonify({
@@ -71,6 +76,7 @@ def check_user():
             })
 
         cursor_users.execute("SELECT 1 FROM Users WHERE ip = ?", (ip,))
+        print('done')
         ip_exists = cursor_users.fetchone()
 
         return jsonify({
@@ -85,6 +91,7 @@ def check_user():
 def add_user():
     try:
         data = request.get_json()
+        print('data get succesul')
         required_fields = ["email", "ip", "name", "phone", "question", "affiliate"]
         if not all(field in data for field in required_fields):
             return jsonify({"error": "Missing required fields"}), 400
@@ -98,12 +105,14 @@ def add_user():
         daily_limit = 100
         extra_limit = 0
         ref_source = data.get("ref_source")
+        print('data mappend succesuful')
 
         with conn_users:
             cursor_users.execute("""
                 INSERT OR IGNORE INTO Users (email, ip, name, phone, question, affiliate, daily_limit, extra_limit)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (email, ip, name, phone, question, affiliate, daily_limit, extra_limit))
+            print('db connect scf')
 
             if cursor_users.rowcount == 0:
                 return jsonify({"error": "User already exists"}), 400
@@ -117,6 +126,7 @@ def add_user():
                 """, (ref_source,))
 
         conn_users.commit()
+        print('committed')
         upload_db_to_github()
         return jsonify({"status": "ok"})
 
