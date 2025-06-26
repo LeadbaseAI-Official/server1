@@ -9,7 +9,31 @@ CORS(app)  # Allow frontend access
 conn = sqlite3.connect("data.db", check_same_thread=False)
 cursor = conn.cursor()
 
+
+@app.route("/track-referral", methods=["POST"])
+def track_referral():
+    data = request.get_json()
+    referal_id = data.get("referal_id")
+    if not referal_id:
+        return jsonify({"error": "No referal_id provided"}), 400
+
+    try:
+        # Add +1 to affiliate column, +30 to extra limit
+        cursor.execute("""
+            UPDATE users
+            SET AFFILIATES = COALESCE(AFFILIATES, 0) + 1,
+                EXTRA_LIMIT = COALESCE(EXTRA_LIMIT, 0) + 30
+            WHERE REPLACE(IP, '.', '') = ?
+        """, (referal_id,))
+        conn.commit()
+
+        return jsonify({"status": "ok", "referal_id": referal_id})
+    except Exception as e:
+        print("Referral Error:", e)
+        return jsonify({"error": str(e)}), 500
 @app.route("/data", methods=["GET"])
+
+
 def get_data():
     try:
         page = int(request.args.get("page", 1))
