@@ -1,17 +1,18 @@
 from flask import Flask, request, jsonify
-import sqlite3, base64, os
+import sqlite3, os, subprocess
 from flask_cors import CORS
+import base64
 from github import Github
 
-# -------------------- GitHub Config --------------------
+DB_FILE = "users.db"
 GITHUB_TOKEN = os.getenv("GH_TOKEN")
 REPO_NAME = "LeadbaseAI-Official/server1"
-DB_FILE = "users.db"
 BRANCH = "main"
 
-print("🔧 GitHub configuration loaded.")
+app = Flask(__name__)
+CORS(app)
 
-# -------------------- GitHub Pull (Startup) --------------------
+# -------------------- GitHub Pull --------------------
 def download_db_from_github():
     try:
         g = Github(GITHUB_TOKEN)
@@ -19,45 +20,31 @@ def download_db_from_github():
         contents = repo.get_contents(DB_FILE, ref=BRANCH)
         with open(DB_FILE, "wb") as f:
             f.write(base64.b64decode(contents.content))
-        print("✅ Pulled latest users.db from GitHub.")
+        print("✅ Pulled users.db from GitHub")
     except Exception as e:
-        print("⚠️ Failed to pull users.db:", e)
+        print("⚠️ GitHub download failed:", e)
 
-# -------------------- GitHub Push (Post-change) --------------------
-def upload_db_to_github():
+# -------------------- Git Push CLI --------------------
+def upload_db_with_git():
     try:
-        g = Github(GITHUB_TOKEN)
-        repo = g.get_repo(REPO_NAME)
-        contents = repo.get_contents(DB_FILE, ref=BRANCH)
-        with open(DB_FILE, "rb") as f:
-            new_content = f.read()
-        repo.update_file(
-            path=DB_FILE,
-            message="Update users.db via add-user or referral",
-            content=new_content,
-            sha=contents.sha,
-            branch=BRANCH
-        )
-        print("✅ users.db pushed to GitHub.")
-    except Exception as e:
-        print("⚠️ GitHub push failed:", e)
+        subprocess.run(["git", "config", "--global", "user.email", "action@github.com"], check=True)
+        subprocess.run(["git", "config", "--global", "user.name", "GitHub Action"], check=True)
+        subprocess.run(["git", "add", DB_FILE], check=True)
+        subprocess.run(["git", "commit", "-m", "Update users.db from Flask server"], check=True)
+        subprocess.run(["git", "push"], check=True)
+        print("✅ users.db pushed via Git CLI")
+    except subprocess.CalledProcessError as e:
+        print("❌ Git push failed:", e)
 
-# -------------------- Init --------------------
 download_db_from_github()
-
-app = Flask(__name__)
-CORS(app)
 
 conn_users = sqlite3.connect(DB_FILE, check_same_thread=False)
 cursor_users = conn_users.cursor()
 
-# -------------------- Routes --------------------
 @app.route("/add-user", methods=["POST"])
 def add_user():
     try:
         data = request.get_json()
-        print("📩 Received data:", data)
-
         required = ["email", "ip", "name", "phone", "question", "affiliate"]
         if not all(field in data for field in required):
             return jsonify({"error": "Missing required fields"}), 400
@@ -78,7 +65,6 @@ def add_user():
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (email, ip, name, phone, question, affiliate, daily_limit, extra_limit))
 
-            print("🧾 Insert rowcount:", cursor_users.rowcount)
             if cursor_users.rowcount == 0:
                 return jsonify({"error": "User already exists"}), 400
 
@@ -89,14 +75,9 @@ def add_user():
                         extra_limit = COALESCE(extra_limit, 0) + 30
                     WHERE REPLACE(ip, '.', '') = ?
                 """, (ref_source,))
-                print(f"🔗 Referral applied for source IP: {ref_source}")
 
         conn_users.commit()
-        print("💾 Committed changes. Pushing to GitHub...")
-        print("🧪 DB absolute path:", os.path.abspath(DB_FILE))
-        print("🧪 DB size before push:", os.path.getsize(DB_FILE))
-        upload_db_to_github()
-
+        upload_db_with_git()
         return jsonify({"status": "ok"})
 
     except Exception as e:
@@ -141,9 +122,7 @@ def check_user():
             "emailExists": False,
             "ipExists": bool(ip_exists)
         })
-
     except Exception as e:
-        print("❌ Check User Error:", e)
         return jsonify({"error": str(e)}), 500
 
 @app.route("/get-affiliate-link", methods=["POST"])
@@ -163,12 +142,9 @@ def get_affiliate_link():
             return jsonify({"error": "User not found"}), 404
 
         ip_clean = user[0].replace('.', '')
-        link = f"https://leadbaseai.in?referal={ip_clean}"
-        return jsonify({"status": "ok", "affiliate_link": link})
+        return jsonify({"status": "ok", "affiliate_link": f"https://leadbaseai.in?referal={ip_clean}"})
     except Exception as e:
-        print("❌ Affiliate Link Error:", e)
         return jsonify({"error": str(e)}), 500
 
-# -------------------- Main --------------------
 if __name__ == "__main__":
     app.run(port=5000)
