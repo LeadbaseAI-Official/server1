@@ -34,7 +34,8 @@ def get_data():
         return jsonify({
             "page": page,
             "data": rows,
-            "has_more": start_idx > 0
+            "has_more": start_idx > 0,
+            "total": total_rows
         })
 
     except Exception as e:
