@@ -5,7 +5,7 @@ from github import Github
 
 # -------------------- GitHub Config --------------------
 GITHUB_TOKEN = os.getenv("GH_TOKEN")  # Store as env or GitHub Actions secret
-REPO_NAME = "your-username/your-repo"
+REPO_NAME = "LeadbaseAI-Official/server1"
 DB_FILE = "users.db"
 BRANCH = "main"
 
@@ -45,7 +45,22 @@ def upload_db_to_github():
 download_db_from_github()
 
 app = Flask(__name__)
-CORS(app)
+
+# ✅ Dual-origin CORS: allow localhost and production
+CORS(app, resources={
+    r"/*": {
+        "origins": [
+            "https://leadbaseai.in",      # 🔒 Production domain
+            "http://localhost:5173"       # 🛠️ Local development
+        ]
+    }
+}, supports_credentials=True)
+
+# ✅ Optional: handle preflight manually (for some edge deployments)
+@app.before_request
+def handle_options():
+    if request.method == "OPTIONS":
+        return '', 200
 
 # Open DB connection to users.db
 conn = sqlite3.connect("users.db", check_same_thread=False)
