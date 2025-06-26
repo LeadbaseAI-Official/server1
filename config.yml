@@ -1,0 +1,6 @@
+tunnel: ${{ secrets.TUNNEL_ID }}
+credentials-file: ./credentials.json
+ingress:
+  - hostname: api.leadbaseai.in
+    service: http://localhost:5000
+  - service: http_status:404
