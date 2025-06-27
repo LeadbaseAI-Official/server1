@@ -36,11 +36,16 @@ def upload_db_with_git():
     except subprocess.CalledProcessError as e:
         print("❌ Git push failed:", e)
 
+# Pull latest DB before starting
 download_db_from_github()
 
+# -------------------- DB Connections --------------------
 conn_users = sqlite3.connect(DB_FILE, check_same_thread=False)
 cursor_users = conn_users.cursor()
+conn_leads = sqlite3.connect("Leads.db", check_same_thread=False)
+cursor_leads = conn_leads.cursor()
 
+# -------------------- Routes --------------------
 @app.route("/add-user", methods=["POST"])
 def add_user():
     try:
@@ -146,5 +151,33 @@ def get_affiliate_link():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# -------------------- NEW: /data endpoint --------------------
+@app.route("/data", methods=["GET"])
+def get_data():
+    try:
+        page = int(request.args.get("page", 1))
+        country = request.args.get("country", "").replace(" ", "_")
+        per_page = 10
+        offset = (page - 1) * per_page
+
+        count_query = f"SELECT COUNT(*) FROM '{country}'"
+        cursor_leads.execute(count_query)
+        total = cursor_leads.fetchone()[0]
+
+        query = f"SELECT * FROM '{country}' LIMIT ? OFFSET ?"
+        cursor_leads.execute(query, (per_page, offset))
+        rows = cursor_leads.fetchall()
+
+        cols = [desc[0] for desc in cursor_leads.description]
+
+        return jsonify({
+            "data": rows,
+            "columns": cols,
+            "total": total
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# -------------------- Run --------------------
 if __name__ == "__main__":
-    app.run(port=5000)
+    app.run(host="0.0.0.0", port=5000)
