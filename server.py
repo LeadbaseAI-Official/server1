@@ -4,7 +4,7 @@ from flask_cors import CORS
 import base64
 from github import Github
 
-DB_FILE = "users.db"
+DB_FILE = "data.db"
 GITHUB_TOKEN = os.getenv("GH_TOKEN")
 REPO_NAME = "LeadbaseAI-Official/server1"
 BRANCH = "main"
