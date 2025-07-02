@@ -6,14 +6,14 @@ from github import Github
 
 DB_FILE = "users.db"
 GITHUB_TOKEN = os.getenv("GH_TOKEN")
-REPO_NAME = "LeadbaseAI-Official/server1"
+REPO_NAME = os.getenv("REPO_NAME", "LeadbaseAI-Official/server1")  # Default to server1
 BRANCH = "main"
+SERVER_PREFIX = os.getenv("SERVER_PREFIX", "/server1")  # Default to /server1
 
 app = Flask(__name__)
 CORS(app)
 
 # -------------------- GitHub Pull --------------------
-
 def download_db_from_github():
     try:
         g = Github(GITHUB_TOKEN)
@@ -21,9 +21,9 @@ def download_db_from_github():
         contents = repo.get_contents(DB_FILE, ref=BRANCH)
         with open(DB_FILE, "wb") as f:
             f.write(base64.b64decode(contents.content))
-        print("✅ Pulled users.db from GitHub")
+        print(f"✅ Pulled {DB_FILE} from GitHub")
     except Exception as e:
-        print("⚠️ GitHub download failed:", e)
+        print(f"⚠️ GitHub download failed: {e}")
 
 # -------------------- Git Push CLI --------------------
 def upload_db_with_git():
@@ -31,11 +31,11 @@ def upload_db_with_git():
         subprocess.run(["git", "config", "--global", "user.email", "action@github.com"], check=True)
         subprocess.run(["git", "config", "--global", "user.name", "GitHub Action"], check=True)
         subprocess.run(["git", "add", DB_FILE], check=True)
-        subprocess.run(["git", "commit", "-m", "Update users.db from Flask server"], check=True)
+        subprocess.run(["git", "commit", "-m", f"Update {DB_FILE} from Flask server"], check=True)
         subprocess.run(["git", "push"], check=True)
-        print("✅ users.db pushed via Git CLI")
+        print(f"✅ {DB_FILE} pushed via Git CLI")
     except subprocess.CalledProcessError as e:
-        print("❌ Git push failed:", e)
+        print(f"❌ Git push failed: {e}")
 
 # Pull latest DB before starting
 download_db_from_github()
@@ -49,11 +49,8 @@ cursor_leads = conn_leads.cursor()
 # -------------------- Routes --------------------
 @app.before_request
 def strip_prefix():
-    prefix = "/server1"  # Update this per instance (e.g., "/server2" in another server)
-    if request.path.startswith(prefix):
-        # Strip only the path, not query string
-        request.environ["PATH_INFO"] = request.path[len(prefix):] or "/"
-
+    if request.path.startswith(SERVER_PREFIX):
+        request.environ["PATH_INFO"] = request.path[len(SERVER_PREFIX):] or "/"
 
 @app.route("/add-user", methods=["POST"])
 def add_user():
@@ -160,7 +157,6 @@ def get_affiliate_link():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# -------------------- NEW: /data endpoint --------------------
 @app.route("/data", methods=["GET"])
 def get_data():
     try:
