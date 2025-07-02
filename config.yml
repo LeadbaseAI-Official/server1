@@ -1,4 +1,4 @@
-tunnel: ${{ secrets.TUNNEL_ID }}
+tunnel: ${{ secrets.TUNNEL_ID_SERVER1 }}
 credentials-file: ./credentials.json
 ingress:
   - hostname: api.leadbaseai.in
