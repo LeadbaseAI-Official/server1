@@ -49,11 +49,11 @@ cursor_leads = conn_leads.cursor()
 # -------------------- Routes --------------------
 @app.before_request
 def strip_prefix():
-    # detect and strip /serverX
-    parts = request.path.split('/')
-    if len(parts) > 1 and parts[1].startswith("server"):
-        new_path = "/" + "/".join(parts[2:])
-        request.environ['PATH_INFO'] = new_path
+    prefix = "/server1"  # Update this per instance (e.g., "/server2" in another server)
+    if request.path.startswith(prefix):
+        # Strip only the path, not query string
+        request.environ["PATH_INFO"] = request.path[len(prefix):] or "/"
+
 
 @app.route("/add-user", methods=["POST"])
 def add_user():
