@@ -1,40 +1,49 @@
-name: Serve Flask API via Tunnel
-
+name: Deploy Flask Server
 on:
-  workflow_dispatch:
-
+  push:
+    branches:
+      - main
 jobs:
-  backend:
+  deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 350
-
     steps:
-      - name: Checkout repo with push access
+      - name: Checkout code
         uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.GH_TOKEN }}  # Must be classic token with repo access
 
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: '3.9'
 
-      - name: Install Python dependencies
-        run: pip install flask flask-cors PyGithub
-
-      - name: Decode Cloudflare credentials
-        run: echo "${{ secrets.CLOUDFLARE_CERT }}" | base64 -d > credentials.json
-
-      - name: Download cloudflared
+      - name: Install dependencies
         run: |
-          wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
-          chmod +x cloudflared-linux-amd64
-          mv cloudflared-linux-amd64 cloudflared
+          python -m pip install --upgrade pip
+          pip install flask flask-cors pygithub
 
-      - name: Launch Flask API + Tunnel
+      - name: Install cloudflared
         run: |
-          git config --global user.email "action@github.com"
-          git config --global user.name "GitHub Action"
-          python server.py &
+          wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /tmp/cloudflared
+          chmod +x /tmp/cloudflared
+          sudo mv /tmp/cloudflared /usr/local/bin/cloudflared
+
+      - name: Save Cloudflare credentials
+        env:
+          CLOUDFLARE_CREDENTIALS: ${{ secrets.CLOUDFLARE_CREDENTIALS }}
+        run: |
+          echo "$CLOUDFLARE_CREDENTIALS" > credentials.json
+
+      - name: Start Flask server
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          REPO_NAME: ${{ secrets.REPO_NAME }}
+          SERVER_PREFIX: ${{ secrets.SERVER_PREFIX }}
+        run: |
+          export FLASK_APP=server.py
+          python -m flask run --host=0.0.0.0 --port=5000 &
           sleep 5
-          ./cloudflared tunnel --config config.yml run
+
+      - name: Start Cloudflare Tunnel
+        env:
+          TUNNEL_ID: ${{ secrets.TUNNEL_ID }}
+        run: |
+          cloudflared tunnel --config config.yml run $TUNNEL_ID
