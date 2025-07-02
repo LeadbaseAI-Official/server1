@@ -13,6 +13,7 @@ app = Flask(__name__)
 CORS(app)
 
 # -------------------- GitHub Pull --------------------
+
 def download_db_from_github():
     try:
         g = Github(GITHUB_TOKEN)
@@ -46,6 +47,14 @@ conn_leads = sqlite3.connect("Leads.db", check_same_thread=False)
 cursor_leads = conn_leads.cursor()
 
 # -------------------- Routes --------------------
+@app.before_request
+def strip_prefix():
+    # detect and strip /serverX
+    parts = request.path.split('/')
+    if len(parts) > 1 and parts[1].startswith("server"):
+        new_path = "/" + "/".join(parts[2:])
+        request.environ['PATH_INFO'] = new_path
+
 @app.route("/add-user", methods=["POST"])
 def add_user():
     try:
