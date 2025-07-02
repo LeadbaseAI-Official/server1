@@ -12,9 +12,9 @@ jobs:
       - name: Checkout repo with push access
         uses: actions/checkout@v3
         with:
-          token: ${{ secrets.GH_TOKEN }}  # Required for database push
+          token: ${{ secrets.GH_TOKEN }}  # Classic token with repo access
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
@@ -26,20 +26,18 @@ jobs:
       - name: Decode Cloudflare credentials
         run: echo "${{ secrets.CLOUDFLARE_CERT }}" | base64 -d > credentials.json
 
-      - name: Download cloudflared binary
+      - name: Download cloudflared
         run: |
-          wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O /tmp/cloudflared
-          chmod +x /tmp/cloudflared
-          sudo mv /tmp/cloudflared /usr/local/bin/cloudflared
+          wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          chmod +x cloudflared-linux-amd64
+          mv cloudflared-linux-amd64 cloudflared
 
-      - name: Start Flask + Tunnel
+      - name: Launch Flask API + Tunnel
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
-          SERVER_PREFIX: ${{ secrets.SERVER_PREFIX }}  # e.g., /server1
         run: |
-          export FLASK_APP=server.py
-          python -m flask run --host=0.0.0.0 --port=5000 &
-
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action"
+          python server.py &
           sleep 5
-
-          cloudflared tunnel --config config.yml run
+          ./cloudflared tunnel --config config.yml run
