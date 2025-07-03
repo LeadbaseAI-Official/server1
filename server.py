@@ -169,7 +169,7 @@ def get_data():
         cursor_leads.execute(count_query)
         total = cursor_leads.fetchone()[0]
 
-        query = f"SELECT * FROM '{country} ORDER BY ROWID DESC' LIMIT ? OFFSET ?"
+        query = f"SELECT * FROM '{country}' ORDER BY ROWID DESC LIMIT ? OFFSET ?"
         cursor_leads.execute(query, (per_page, offset))
         rows = cursor_leads.fetchall()
 
