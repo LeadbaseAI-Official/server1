@@ -2,11 +2,13 @@ name: Serve Flask API via Tunnel
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours (00:00, 06:00, 12:00, 18:00)
 
 jobs:
   backend:
     runs-on: ubuntu-latest
-    timeout-minutes: 350
+    timeout-minutes: 357  # Just under 6 hours
 
     steps:
       - name: Checkout repo with push access
